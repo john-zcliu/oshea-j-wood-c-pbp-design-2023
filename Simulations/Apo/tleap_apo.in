@@ -1,0 +1,10 @@
+tleap
+source leaprc.protein.ff14SB
+source leaprc.gaff
+source leaprc.water.tip3p
+1ANF = loadPDB crystal_apo.pdb
+addions 1ANF Na+ 0
+solvatebox 1ANF TIP3PBOX 8.0
+saveAmberParm 1ANF 1anf_malremoved_t3p.parm7 1anf_malremoved_t3p.rst7
+savePDB 1ANF 1anf_malremoved_tleap.pdb
+quit

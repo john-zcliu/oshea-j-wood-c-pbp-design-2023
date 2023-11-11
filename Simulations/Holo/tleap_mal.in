@@ -1,0 +1,9 @@
+tleap
+source leaprc.gaff
+MAL = loadmol2 mal.mol2
+check MAL
+loadamberparams mal.frcmod
+check MAL
+saveoff MAL mal.lib`
+saveamberparm MAL mal.prmtop mal.rst7
+quit
