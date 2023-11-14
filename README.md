@@ -5,7 +5,7 @@ Welcome to our periplasmic binding protein biosensor design repo. Here is a desc
 To run the holo simulations, first a PDB file was made for maltose (`mal.pdb`), from which `.mol2` and `.frcmod` files were generated using Amber:
 
 ```
-antechamber -fi pdb -i MAL.pdb -fo mol2 -o mal.mol2 -c bcc -at amber
+antechamber -fi pdb -i mal.pdb -fo mol2 -o mal.mol2 -c bcc -at amber
 parmchk2 -i mal.mol2 -f mol2 -o mal.frcmod
 ```
 
