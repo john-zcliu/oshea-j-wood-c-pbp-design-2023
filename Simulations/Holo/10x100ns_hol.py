@@ -60,6 +60,11 @@ def run_sim(top_path, coord_path, output_path, sim_time, sim_num):
 
 
 if __name__ == '__main__':
+    import os
+    
+    # change directory to where the script is
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    
     top_path = pathlib.Path("1anf_mal_t3p.parm7")
     coord_path = pathlib.Path("1anf_mal_t3p.rst7")
     sim_time = 100
