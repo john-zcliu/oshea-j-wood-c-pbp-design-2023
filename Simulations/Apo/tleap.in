@@ -1,0 +1,10 @@
+
+source leaprc.protein.ff14SB
+source leaprc.water.tip3p
+mol = loadpdb 1anf_without_ligand.pdb
+addions mol Na+ 0
+addions mol Cl- 0
+solvatebox mol TIP3PBOX 8.0
+saveamberparm mol system.prmtop system.inpcrd
+savepdb mol protein_solvated.pdb
+quit
