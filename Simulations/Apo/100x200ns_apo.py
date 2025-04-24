@@ -187,6 +187,7 @@ def prepare_system(protein_pdb: str, tleap_script_path="tleap.in") -> tuple[str,
 source leaprc.protein.ff14SB
 source leaprc.water.tip3p
 mol = loadpdb {protein_pdb}
+savepdb mol protein_only.pdb
 addions mol Na+ 0
 addions mol Cl- 0
 solvatebox mol TIP3PBOX 8.0
@@ -201,7 +202,6 @@ quit
     return "system.prmtop", "system.inpcrd", protein_atoms
 
 def setup_simulation(prmtop_file: str, inpcrd_file: str, protein_atoms: list[int], output_dir: str) -> Simulation:
-    platform = Platform.getPlatformByName("CUDA")
     prmtop = AmberPrmtopFile(prmtop_file)
     inpcrd = AmberInpcrdFile(inpcrd_file)
 
@@ -210,25 +210,30 @@ def setup_simulation(prmtop_file: str, inpcrd_file: str, protein_atoms: list[int
 
     integrator = LangevinMiddleIntegrator(TEMPERATURE, 1/picosecond, TIMESTEP)
 
+    platform = Platform.getPlatformByName("CUDA")
     simulation = Simulation(prmtop.topology, system, integrator, platform)
     simulation.context.setPositions(inpcrd.positions)
     if inpcrd.boxVectors is not None:
         simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
+        print(inpcrd.boxVectors)
+    print("Periodic box size:", simulation.context.getState().getPeriodicBoxVectors())
     
     print("Minimizing...")
     simulation.minimizeEnergy()
     print("Minimizing...Done")
 
     # Reporters
-    # simulation.reporters.append(DCDReporter(os.path.join(output_dir, "protein_only.dcd"),
-    #                                         REPORT_INTERVAL, enforcePeriodicBox=False,
-                                            # append=False, atomSubset=protein_atoms))
-    simulation.reporters.append(MDAReporter(os.path.join(output_dir, 'traj.dcd'), REPORT_INTERVAL, enforcePeriodicBox=False))
+    simulation.reporters.append(DCDReporter(os.path.join(output_dir, "traj_full.dcd"),
+                                            REPORT_INTERVAL*100, enforcePeriodicBox=True))
+    simulation.reporters.append(MDAReporter(os.path.join(output_dir, 'traj.dcd'), 
+                                            REPORT_INTERVAL, enforcePeriodicBox=True, 
+                                            selection="protein and not resname WAT and not resname NA and not resname CL"))
 
     simulation.reporters.append(
         StateDataReporter(os.path.join(output_dir, "simulation_stats.csv"), 
                           REPORT_INTERVAL, step=True, kineticEnergy=True,
-                          potentialEnergy=True, temperature=True, progress=True,
+                          potentialEnergy=True, temperature=True, progress=True, volume=True,
+                          totalEnergy=True, density=True, time=True,
                           remainingTime=True, speed=True, totalSteps=NSTEPS)
     )
     

@@ -31,9 +31,6 @@ def run_sim(top_path, coord_path, output_path, sim_time, sim_num):
     inpcrd = AmberInpcrdFile(str(coord_path))
     print("Loading amber files... Done.")
 
-    from parmed.amber import AmberParm
-    parm = AmberParm(str(top_path))
-
     print("Creating system...")
     system = prmtop.createSystem(
         nonbondedMethod=PME, nonbondedCutoff=1 * nanometer, constraints=HBonds
@@ -48,51 +45,6 @@ def run_sim(top_path, coord_path, output_path, sim_time, sim_num):
     print("Creating system... Done.")
 
 
-    # force_groups = {}
-    # for i, force in enumerate(system.getForces()):
-    #     force.setForceGroup(i)
-    #     force_groups[force.__class__.__name__] = i
-    #     print(f"Force {i}: {force.__class__.__name__}")
-        
-    # for name, group in force_groups.items():
-    #     state = simulation.context.getState(getEnergy=True, groups={group})
-    #     energy = state.getPotentialEnergy().value_in_unit(kilojoule_per_mole)
-    #     print(f"{name}: {energy:.2f} kJ/mol")
-
-
-    # # Minimise energy
-    # print("Minimising energy...")
-    # simulation.minimizeEnergy()
-    # print("Minimising energy... Done.")
-    # # Setup logging for NPT
-    # log_frequency = 100_000 # 2 fs * 100,000 = 0.2 ns. So one frame every 0.2 ns. 500 frames for a 100 ns simulation
-    # simulation.reporters.append(DCDReporter(
-    #     str(output_path / f"npt_production_{sim_num:02d}.dcd"),log_frequency))
-    # simulation.reporters.append(
-    #     StateDataReporter(
-    #         str(output_path / f"npt_production_{sim_num:02d}.csv"),
-    #         log_frequency,
-    #         step=True,
-    #         potentialEnergy=True,
-    #         kineticEnergy=True,
-    #         temperature=True,
-    #         volume=True,
-    #         speed=True,
-    #         time=True,
-    #     )
-    # )
-
-    # # NPT production run (with a barostat for constant pressure rather than volume)
-    # print("Running NPT production...")
-    # for ns_passed in range(1, sim_time + 1):
-    #     simulation.step(500_000) # run simulation for 500,000 steps, 1ns
-    #     if not (ns_passed % 5): # "not" occurs every 5ns because 5%5 = 0
-    #         simulation.saveState(str(output_path / f"npt_production_{ns_passed}ns.xml")) #Save checkpoint data
-    #         simulation.saveCheckpoint(str(output_path / f"npt_production_{ns_passed}ns.chk")) #Save checkpoint simulation state
-    #     print(f"Completed {ns_passed}ns...")
-    # print("Running NPT production... Done.")
-    # return
-    
     # Minimise energy
     print("Minimising energy...")
     simulation.minimizeEnergy()
@@ -118,25 +70,14 @@ def run_sim(top_path, coord_path, output_path, sim_time, sim_num):
     # NPT production run (with a barostat for constant pressure rather than volume)
     print("Running NPT production...")
     for ns_passed in range(1, sim_time + 1):
-        simulation.step(500) # run simulation for 500,000 steps, 1ns
-        print(f"Simulation {sim_num}: {ns_passed}ns")
-        
-        for i, f in enumerate(system.getForces()):
-            state = simulation.context.getState(getEnergy=True, groups={i})
-            print(f.getName(), state.getPotentialEnergy())
-            
-        # Get protein energy
-        protein_energy = get_protein_energy(simulation, prmtop)
-        # Print protein energy to stdout
-        print(f"Simulation {sim_num}: Protein energy: {protein_energy}")
-        print(f"Simulation {sim_num}: System energy: {simulation.context.getState(getEnergy=True).getPotentialEnergy()}")
+        simulation.step(500_000) # run simulation for 500,000 steps, 1ns
         if not (ns_passed % 5): # "not" occurs every 5ns because 5%5 = 0
             simulation.saveState(str(output_path / f"npt_production_{ns_passed}ns.xml")) #Save checkpoint data
             simulation.saveCheckpoint(str(output_path / f"npt_production_{ns_passed}ns.chk")) #Save checkpoint simulation state
         print(f"Completed {ns_passed}ns...")
     print("Running NPT production... Done.")
     return
-
+    
 
 if __name__ == '__main__':
     import os
