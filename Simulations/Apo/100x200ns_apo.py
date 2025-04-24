@@ -212,7 +212,9 @@ def setup_simulation(prmtop_file: str, inpcrd_file: str, protein_atoms: list[int
 
     simulation = Simulation(prmtop.topology, system, integrator, platform)
     simulation.context.setPositions(inpcrd.positions)
-
+    if inpcrd.boxVectors is not None:
+        simulation.context.setPeriodicBoxVectors(*inpcrd.boxVectors)
+    
     print("Minimizing...")
     simulation.minimizeEnergy()
     print("Minimizing...Done")
