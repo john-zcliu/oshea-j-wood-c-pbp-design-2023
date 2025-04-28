@@ -34,6 +34,12 @@ TOTAL_NS = 200
 NSTEPS = int((TOTAL_NS * 1000 * picoseconds) / TIMESTEP)
 REPORT_INTERVAL = int(10 * picoseconds / TIMESTEP)
 BOX_PADDING = 1.0 * nanometers
+# === DYNAMIC CONFIGURATION ===
+# Early Termination parameters
+ET_TRIGGER_THRES = 27.0  # angstroms. Distance threshold for early termination
+ET_HOLDING_THRES = 25.0  # angstroms. Distance threshold for early termination
+ET_HOLDING_TIME = 50  # ns. Number of steps above threshold before termination
+ET_NUM_HISTORY = 10  # number of steps to keep in history
 
 
 class ProteinEnergyReporter(object):
@@ -251,16 +257,63 @@ def setup_simulation(prmtop_file: str, inpcrd_file: str, protein_atoms: list[int
 
 def run_simulation(simulation: Simulation):
     steps_per_ns = int((1 * nanoseconds) / TIMESTEP)
+    steps_above_thres = 0
+    distance_triggered = False
+    distance_history = []
+    
+    # Get atom indices
+    topology = simulation.topology
+    atom_indices = {}
+    for atom in topology.atoms():
+        if atom.residue.id == '210' and atom.name == 'CA':
+            atom_indices['210_CA'] = atom.index
+        if atom.residue.id == '10' and atom.name == 'CA':
+            atom_indices['10_CA'] = atom.index
+
+    print(f"Atom indices found: {atom_indices}")
+    
+    assert atom_indices['10_CA'] == 158, f"wrong 10_CA atom index: {atom_indices['10_CA']}."
+    assert atom_indices['210_CA'] == 3286, f"wrong 210_CA atom index: {atom_indices['210_CA']}."
+    
     for ns_passed in range(1, TOTAL_NS + 1):
         simulation.step(steps_per_ns)
-        print(f"Completed {ns_passed}ns...")
+        
+        # Measure the distance
+        state = simulation.context.getState(getPositions=True)
+        positions = state.getPositions()
+
+        pos1 = positions[atom_indices['210_CA']]
+        pos2 = positions[atom_indices['10_CA']]
+        distance = norm(pos1 - pos2).value_in_unit(angstroms)  # from openmm.unit.unit_math import norm
+        distance_history.append(distance)
+        distance_history = distance_history[-ET_NUM_HISTORY:]  # Keep only the last ET_NUM_HISTORY distances
+        mean_dist = sum(distance_history) / len(distance_history)
+        
+        # Check conditions
+        if not distance_triggered and distance >= ET_TRIGGER_THRES:
+            distance_triggered = True
+            print(f"Trigger detected: Distance hit {ET_TRIGGER_THRES:.2f} Å at {ns_passed} ns.")
+
+        if distance_triggered:
+            if mean_dist >= ET_HOLDING_THRES:
+                steps_above_thres += 1
+            elif steps_above_thres > 0:
+                steps_above_thres = 0  # Reset counter if distance drops below 24 Å
+                print(f"Distance dropped below {ET_HOLDING_THRES:.2f} Å at {ns_passed} ns. Resetting counter.")
+
+            # Check if it's been above 24Å for 50 ns
+            if steps_above_thres >= ET_HOLDING_TIME:
+                print(f"Terminating early at {ns_passed} ns. Distance remained ≥{ET_HOLDING_THRES} Å for {ET_HOLDING_TIME} ns.")
+                return
+        
+        print(f"Completed {ns_passed}ns... {distance:.2f} Å {mean_dist=:.2f} Å", f"{steps_above_thres}/{ET_HOLDING_TIME}" if steps_above_thres > 0 else "")
     print("Simulation complete.")
 
 def main():
     extract_protein_only(PDB_FILE, PDB_PROCESSED_FILE)
     prmtop, inpcrd, protein_atoms = prepare_system(PDB_PROCESSED_FILE)
     
-    for i in range(TOTAL_SIMULATIONS):
+    for i in range(8, TOTAL_SIMULATIONS):
         sim_id = f"simulations/sim_{i+1:03d}"
         print(f"\n=== Starting simulation {sim_id} ===")
         os.makedirs(sim_id, exist_ok=True)
