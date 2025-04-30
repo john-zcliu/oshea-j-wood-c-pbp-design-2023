@@ -305,6 +305,9 @@ def run_simulation(simulation: Simulation):
             if steps_above_thres >= ET_HOLDING_TIME:
                 print(f"Terminating early at {ns_passed} ns. Distance remained ≥{ET_HOLDING_THRES} Å for {ET_HOLDING_TIME} ns.")
                 return
+        elif ns_passed > TOTAL_NS // 2:
+            print(f"Early termination due to protein not opening up. Distance remained <{ET_TRIGGER_THRES} Å for {ns_passed} ns.")
+            return
         
         print(f"Completed {ns_passed}ns... {distance:.2f} Å {mean_dist=:.2f} Å", f"{steps_above_thres}/{ET_HOLDING_TIME}" if steps_above_thres > 0 else "")
     print("Simulation complete.")
@@ -313,8 +316,8 @@ def main():
     extract_protein_only(PDB_FILE, PDB_PROCESSED_FILE)
     prmtop, inpcrd, protein_atoms = prepare_system(PDB_PROCESSED_FILE)
     
-    for i in range(8, TOTAL_SIMULATIONS):
-        sim_id = f"simulations/sim_{i+1:03d}"
+    for i in range(14, TOTAL_SIMULATIONS):
+        sim_id = f"simulations/sim_{i:03d}"
         print(f"\n=== Starting simulation {sim_id} ===")
         os.makedirs(sim_id, exist_ok=True)
 
